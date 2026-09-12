@@ -1,0 +1,29 @@
+{
+  "name": "travel-watch",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,web -c cyan,magenta \"npm run dev -w @travel-watch/api\" \"npm run dev -w @travel-watch/web\"",
+    "build": "npm run build -w @travel-watch/api && npm run build -w @travel-watch/web",
+    "lint": "npm run lint -w @travel-watch/api && npm run lint -w @travel-watch/web",
+    "test": "npm run test -w @travel-watch/api",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev --name init",
+    "prisma:seed": "prisma db seed"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "prisma": "^6.15.0",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.3"
+  },
+  "overrides": {
+    "deepmerge-ts": "8.0.2"
+  }
+}

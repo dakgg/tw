@@ -1,0 +1,97 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../apps/api/src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model OperatingArea {
+  id          String                  @id @default(cuid())
+  code        String                  @unique
+  name        String
+  region      String
+  latitude    Decimal                 @db.Decimal(9, 6)
+  longitude   Decimal                 @db.Decimal(9, 6)
+  marketRates MarketRateSnapshot[]
+  demand      InboundDemandSnapshot[]
+
+  @@map("operating_areas")
+}
+
+model SourceCountry {
+  code      String    @id @db.Char(2)
+  name      String
+  timezone  String
+  holidays  Holiday[]
+  demand    InboundDemandSnapshot[]
+
+  @@map("source_countries")
+}
+
+model Holiday {
+  id          String        @id @default(cuid())
+  countryCode String        @map("country_code") @db.Char(2)
+  country     SourceCountry @relation(fields: [countryCode], references: [code])
+  date        DateTime      @db.Date
+  localName   String        @map("local_name")
+  name        String
+
+  @@unique([countryCode, date, localName])
+  @@index([countryCode, date])
+  @@map("holidays")
+}
+
+model InboundDemandSnapshot {
+  id                  String        @id @default(cuid())
+  areaId              String        @map("area_id")
+  area                OperatingArea @relation(fields: [areaId], references: [id])
+  countryCode         String?       @map("country_code") @db.Char(2)
+  country             SourceCountry? @relation(fields: [countryCode], references: [code])
+  stayDate            DateTime      @map("stay_date") @db.Date
+  observedAt          DateTime      @map("observed_at")
+  demandIndex         Decimal       @map("demand_index") @db.Decimal(6, 2)
+  inboundSearchVolume Int?          @map("inbound_search_volume")
+  bookingRateEstimate Decimal?      @map("booking_rate_estimate") @db.Decimal(5, 2)
+  searchSharePercent  Decimal?      @map("search_share_percent") @db.Decimal(5, 2)
+  seatCapacity        Int?          @map("seat_capacity")
+  confidence          String?
+  provider            String
+
+  @@index([areaId, countryCode, stayDate, observedAt])
+  @@map("inbound_demand_snapshots")
+}
+
+model MarketRateSnapshot {
+  id         String        @id @default(cuid())
+  areaId     String        @map("area_id")
+  area       OperatingArea @relation(fields: [areaId], references: [id])
+  stayDate   DateTime      @map("stay_date") @db.Date
+  observedAt DateTime      @map("observed_at")
+  radiusKm   Decimal       @map("radius_km") @db.Decimal(5, 2)
+  roomType   String        @map("room_type")
+  lowRate    Decimal       @map("low_rate") @db.Decimal(12, 2)
+  medianRate Decimal       @map("median_rate") @db.Decimal(12, 2)
+  averageRate Decimal      @map("average_rate") @db.Decimal(12, 2)
+  highRate   Decimal       @map("high_rate") @db.Decimal(12, 2)
+  sampleSize Int           @map("sample_size")
+  currency   String        @default("KRW") @db.Char(3)
+  provider   String
+
+  @@index([areaId, stayDate, observedAt, radiusKm])
+  @@map("market_rate_snapshots")
+}
+
+model CollectionRun {
+  id          String    @id @default(cuid())
+  kind        String
+  status      String
+  startedAt   DateTime  @default(now()) @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  message     String?
+
+  @@index([kind, startedAt])
+  @@map("collection_runs")
+}
