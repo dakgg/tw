@@ -7,3 +7,4 @@ coverage
 *.log
 *.tsbuildinfo
 apps/api/src/generated/prisma
+.DS_Store

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ExchangeRateData, Holiday } from '@/lib/types';
 import { HolidayCalendar } from './HolidayCalendar';
+import { NearbyStayMap } from './NearbyStayMap';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
 const countryCodes = 'JP,CN,TW,US';
@@ -95,6 +96,8 @@ export function Dashboard() {
           <HolidayCalendar holidays={holidays} />
         </>
       )}
+
+      <NearbyStayMap />
 
       <section className="panel data-notice">
         <strong>수요·예매율·숙박 시세 데이터는 표시하지 않습니다.</strong>
