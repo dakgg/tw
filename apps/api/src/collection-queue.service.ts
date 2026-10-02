@@ -12,7 +12,7 @@ export class CollectionQueueService implements OnModuleInit, OnModuleDestroy {
 
   onModuleInit() {
     if (!process.env.REDIS_URL) {
-      this.logger.warn('REDIS_URL이 없어 인메모리 데모 모드로 실행합니다.');
+      this.logger.warn('REDIS_URL이 없어 수집 큐를 비활성화합니다.');
       return;
     }
     const connection = this.redisConnection(process.env.REDIS_URL);
@@ -28,7 +28,7 @@ export class CollectionQueueService implements OnModuleInit, OnModuleDestroy {
 
   async enqueueAll() {
     if (!this.queue) {
-      return { queued: false, mode: 'demo', jobs: COLLECTIONS, message: 'REDIS_URL 설정 시 BullMQ에 등록됩니다.' };
+      return { queued: false, jobs: [], message: 'REDIS_URL이 없어 수집 큐가 비활성화되어 있습니다.' };
     }
     const jobs = await Promise.all(COLLECTIONS.map((name) => this.queue!.add(name, {}, { removeOnComplete: 100, attempts: 3 })));
     return { queued: true, jobs: jobs.map((job) => ({ id: job.id, name: job.name })) };
@@ -40,9 +40,7 @@ export class CollectionQueueService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async collect(kind: string) {
-    // 공급자 어댑터 연결 지점: 정규화한 뒤 Prisma snapshot 테이블에 저장합니다.
-    this.logger.log(`${kind} 수집 완료 (demo provider)`);
-    return { kind, collectedAt: new Date().toISOString() };
+    throw new Error(`${kind} 수집 공급자가 설정되지 않았습니다.`);
   }
 
   private redisConnection(redisUrl: string) {

@@ -9,18 +9,17 @@ describe('TravelService', () => {
     service = module.get(TravelService);
   });
 
-  it('builds a complete dashboard', () => {
+  it('returns official holiday data without generated metrics', () => {
     const dashboard = service.getDashboard('SEOUL-JG', 3);
     expect(dashboard.area.areaCode).toBe('SEOUL-JG');
-    expect(dashboard.inboundDemand).toHaveLength(14);
-    expect(dashboard.marketRates).toHaveLength(14);
-    expect(dashboard.summary.marketMedian).toBeGreaterThan(0);
+    expect(dashboard.inboundDemand).toEqual([]);
+    expect(dashboard.marketRates).toEqual([]);
+    expect(dashboard.summary).toBeNull();
+    expect(dashboard.holidays.length).toBeGreaterThan(0);
   });
 
-  it('changes the market sample by radius', () => {
-    const narrow = service.getMarketRates('BUSAN-HU', 1).history.at(-1)!;
-    const wide = service.getMarketRates('BUSAN-HU', 5).history.at(-1)!;
-    expect(wide.sampleSize).toBeGreaterThan(narrow.sampleSize);
+  it('does not synthesize market rates', () => {
+    expect(service.getMarketRates('BUSAN-HU', 3)).toEqual({ history: [], roomTypes: [] });
   });
 
   it('returns every public holiday for selected countries', () => {
@@ -29,10 +28,7 @@ describe('TravelService', () => {
     expect(new Set(holidays.map((holiday) => holiday.countryCode))).toEqual(new Set(['JP', 'CN', 'TW', 'US']));
   });
 
-  it('returns country booking-rate estimates', () => {
-    const rates = service.getCountryBookingRates('SEOUL-JG');
-    expect(rates).toHaveLength(4);
-    expect(rates.every((rate) => rate.bookingRateEstimate >= 0 && rate.bookingRateEstimate <= 100)).toBe(true);
-    expect(rates.every((rate) => rate.isFake)).toBe(true);
+  it('does not synthesize country booking-rate estimates', () => {
+    expect(service.getCountryBookingRates('SEOUL-JG')).toEqual([]);
   });
 });

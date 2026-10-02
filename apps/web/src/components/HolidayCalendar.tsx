@@ -72,6 +72,7 @@ export function HolidayCalendar({ holidays }: { holidays: Holiday[] }) {
           );
         })}
       </div>
+      <p className="source-note">데이터 출처: <a href="https://github.com/commenthol/date-holidays" target="_blank" rel="noreferrer">date-holidays</a> · 국가별 공휴일 규칙 기반 오픈소스 데이터셋</p>
     </section>
   );
 }

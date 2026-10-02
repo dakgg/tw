@@ -18,7 +18,6 @@ export type DemandPoint = {
   date: string;
   demandIndex: number;
   inboundSearchVolume: number;
-  isFake: true;
 };
 
 export type CountryBookingRate = {
@@ -29,7 +28,6 @@ export type CountryBookingRate = {
   searchSharePercent: number;
   seatCapacity: number;
   confidence: 'high' | 'medium' | 'low';
-  isFake: true;
 };
 
 export type MarketRatePoint = {
@@ -39,7 +37,6 @@ export type MarketRatePoint = {
   average: number;
   high: number;
   sampleSize: number;
-  isFake: true;
 };
 
 export type RoomTypeRate = {
@@ -48,5 +45,4 @@ export type RoomTypeRate = {
   previousMedian: number;
   changePercent: number;
   sampleSize: number;
-  isFake: true;
 };

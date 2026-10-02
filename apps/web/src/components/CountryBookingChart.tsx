@@ -16,7 +16,7 @@ export function CountryBookingChart({ data }: { data: CountryBookingRate[] }) {
         trigger: 'axis', axisPointer: { type: 'shadow' }, backgroundColor: '#18201d', borderWidth: 0, textStyle: { color: '#fff' },
         formatter: (params: Array<{ dataIndex: number }>) => {
           const item = data[params[0].dataIndex];
-          return `<b>${item.country} (fake)</b><br/>예매율 추정 ${item.bookingRateEstimate}%<br/>검색 비중 ${item.searchSharePercent}%<br/>좌석 공급 ${item.seatCapacity.toLocaleString()}석`;
+          return `<b>${item.country}</b><br/>예매율 추정 ${item.bookingRateEstimate}%<br/>검색 비중 ${item.searchSharePercent}%<br/>좌석 공급 ${item.seatCapacity.toLocaleString()}석`;
         },
       },
       xAxis: { type: 'value', min: 0, max: 100, axisLabel: { formatter: '{value}%', color: '#718078' }, splitLine: { lineStyle: { color: '#edf0ee' } } },

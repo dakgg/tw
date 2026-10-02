@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { countryBookingRatesFor, demandFor, marketRatesFor, operatingAreas, roomTypesFor } from './demo-data';
 import { publicHolidays } from './holiday-data';
+import { operatingAreas } from './operating-areas';
+import type { CountryBookingRate, DemandPoint, MarketRatePoint, RoomTypeRate } from './types';
 
 @Injectable()
 export class TravelService {
@@ -10,43 +11,32 @@ export class TravelService {
     return publicHolidays(countryCodes, years);
   }
 
-  getInboundDemand(areaCode: string) {
+  getInboundDemand(areaCode: string): DemandPoint[] {
     this.assertArea(areaCode);
-    return demandFor(areaCode.toUpperCase());
+    return [];
   }
 
-  getCountryBookingRates(areaCode: string) {
+  getCountryBookingRates(areaCode: string): CountryBookingRate[] {
     this.assertArea(areaCode);
-    return countryBookingRatesFor(areaCode.toUpperCase());
+    return [];
   }
 
-  getMarketRates(areaCode: string, radiusKm = 3) {
+  getMarketRates(areaCode: string, radiusKm = 3): { history: MarketRatePoint[]; roomTypes: RoomTypeRate[] } {
     this.assertArea(areaCode);
-    return { history: marketRatesFor(areaCode.toUpperCase(), radiusKm), roomTypes: roomTypesFor(areaCode.toUpperCase(), radiusKm) };
+    void radiusKm;
+    return { history: [], roomTypes: [] };
   }
 
   getDashboard(areaCode: string, radiusKm = 3, countryCodes?: string) {
     const area = this.assertArea(areaCode);
-    const inboundDemand = demandFor(area.areaCode);
-    const marketRates = marketRatesFor(area.areaCode, radiusKm);
-    const latestRate = marketRates.at(-1)!;
-    const previousRate = marketRates.at(-2)!;
-    const currentDemand = inboundDemand.at(-1)?.demandIndex ?? 0;
-    const previousDemand = inboundDemand.at(-2)?.demandIndex ?? currentDemand;
     return {
-      area, generatedAt: new Date().toISOString(), dataMode: 'fake', filters: { radiusKm, countryCodes: countryCodes ?? 'JP,CN,TW,US' },
-      summary: {
-        demandIndex: currentDemand,
-        demandChangePercent: Math.round(((currentDemand - previousDemand) / previousDemand) * 1000) / 10,
-        marketMedian: latestRate.median,
-        marketChangePercent: Math.round(((latestRate.median - previousRate.median) / previousRate.median) * 1000) / 10,
-        lowRate: latestRate.low, highRate: latestRate.high, sampleSize: latestRate.sampleSize,
-      },
-      inboundDemand,
-      countryBookingRates: countryBookingRatesFor(area.areaCode),
+      area, generatedAt: new Date().toISOString(), dataMode: 'unavailable', filters: { radiusKm, countryCodes: countryCodes ?? 'JP,CN,TW,US' },
+      summary: null,
+      inboundDemand: [],
+      countryBookingRates: [],
       holidays: this.getHolidays(countryCodes, [new Date().getFullYear(), new Date().getFullYear() + 1]),
-      marketRates,
-      roomTypes: roomTypesFor(area.areaCode, radiusKm),
+      marketRates: [],
+      roomTypes: [],
     };
   }
 

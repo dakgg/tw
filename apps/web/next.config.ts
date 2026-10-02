@@ -3,7 +3,7 @@ import type { NextConfig } from 'next';
 try {
   process.loadEnvFile('../../.env');
 } catch {
-  // 환경 파일이 없어도 데모 모드로 빌드됩니다.
+  // 환경 파일이 없으면 기본 로컬 주소를 사용합니다.
 }
 
 const nextConfig: NextConfig = {
