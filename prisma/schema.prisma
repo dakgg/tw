@@ -1,3 +1,5 @@
+// Target relational schema for a future PostgreSQL adapter.
+// The current single-process server uses EH_DATA_DIR with one workspace file per user.
 generator client {
   provider = "prisma-client-js"
   output   = "../apps/api/src/generated/prisma"
@@ -8,90 +10,191 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model OperatingArea {
-  id          String                  @id @default(cuid())
-  code        String                  @unique
-  name        String
-  region      String
-  latitude    Decimal                 @db.Decimal(9, 6)
-  longitude   Decimal                 @db.Decimal(9, 6)
-  marketRates MarketRateSnapshot[]
-  demand      InboundDemandSnapshot[]
-
-  @@map("operating_areas")
+model User {
+  id           String    @id @default(cuid())
+  username     String    @unique
+  displayName  String
+  passwordHash String
+  passwordSalt String
+  demo         Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  properties   Property[]
+  sessions     Session[]
 }
 
-model SourceCountry {
-  code      String    @id @db.Char(2)
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  expiresAt DateTime
+
+  @@index([userId, expiresAt])
+}
+
+model Property {
+  userId       String
+  user         User                @relation(fields: [userId], references: [id])
+  id           String              @id @default(cuid())
+  name         String
+  address      String              @default("")
+  rooms        Room[]
+  guests       Guest[]
+  reservations Reservation[]
+  cleaning     CleaningTask[]
+  issues       RoomIssue[]
+  messages     Message[]
+  claims       Claim[]
+  connections  ChannelConnection[]
+  activity     Activity[]
+}
+
+model Room {
+  id           String        @id @default(cuid())
+  propertyId   String
+  property     Property      @relation(fields: [propertyId], references: [id])
+  name         String
+  type         String
+  capacity     Int
+  baseRate     Int
+  reservations Reservation[]
+  rates        DailyRate[]
+  cleaning     CleaningTask[]
+  issues       RoomIssue[]
+
+  @@unique([propertyId, name])
+}
+
+model Guest {
+  id           String        @id @default(cuid())
+  propertyId   String
+  property     Property      @relation(fields: [propertyId], references: [id])
+  name         String
+  email        String        @default("")
+  note         String        @default("")
+  reservations Reservation[]
+
+  @@index([propertyId, email])
+}
+
+model Reservation {
+  id         String         @id @default(cuid())
+  propertyId String
+  property   Property       @relation(fields: [propertyId], references: [id])
+  roomId     String
+  room       Room           @relation(fields: [roomId], references: [id])
+  guestId    String
+  guest      Guest          @relation(fields: [guestId], references: [id])
+  channel    String
+  checkIn    DateTime       @db.Date
+  checkOut   DateTime       @db.Date
+  guests     Int
+  total      Int
+  commission Int
+  settled    Boolean        @default(false)
+  status     String         @default("confirmed")
+  note       String         @default("")
+  createdAt  DateTime       @default(now())
+  cleaning   CleaningTask?
+  messages   Message[]
+  claims     Claim[]
+
+  @@index([propertyId, checkIn, checkOut])
+  @@index([roomId, checkIn, checkOut])
+}
+
+model DailyRate {
+  roomId String
+  room   Room     @relation(fields: [roomId], references: [id])
+  date   DateTime @db.Date
+  price  Int
+  closed Boolean  @default(false)
+
+  @@id([roomId, date])
+}
+
+model CleaningTask {
+  id            String       @id @default(cuid())
+  propertyId    String
+  property      Property     @relation(fields: [propertyId], references: [id])
+  roomId        String
+  room          Room         @relation(fields: [roomId], references: [id])
+  reservationId String?      @unique
+  reservation   Reservation? @relation(fields: [reservationId], references: [id])
+  date          DateTime     @db.Date
+  assignee      String       @default("")
+  status        String       @default("todo")
+  note          String       @default("")
+
+  @@index([propertyId, date, status])
+}
+
+model RoomIssue {
+  id          String   @id @default(cuid())
+  propertyId  String
+  property    Property @relation(fields: [propertyId], references: [id])
+  roomId      String
+  room        Room     @relation(fields: [roomId], references: [id])
+  title       String
+  description String   @default("")
+  priority    String   @default("normal")
+  status      String   @default("todo")
+  createdAt   DateTime @default(now())
+}
+
+model Message {
+  id            String      @id @default(cuid())
+  propertyId    String
+  property      Property    @relation(fields: [propertyId], references: [id])
+  reservationId String
+  reservation   Reservation @relation(fields: [reservationId], references: [id])
+  text          String
+  direction     String
+  read          Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+}
+
+model Claim {
+  id            String      @id @default(cuid())
+  propertyId    String
+  property      Property    @relation(fields: [propertyId], references: [id])
+  reservationId String
+  reservation   Reservation @relation(fields: [reservationId], references: [id])
+  title         String
+  description   String      @default("")
+  amount        Int
+  status        String      @default("collecting")
+  createdAt     DateTime    @default(now())
+  evidence      Evidence[]
+}
+
+model Evidence {
+  id        String   @id @default(cuid())
+  claimId   String
+  claim     Claim    @relation(fields: [claimId], references: [id])
   name      String
-  timezone  String
-  holidays  Holiday[]
-  demand    InboundDemandSnapshot[]
-
-  @@map("source_countries")
+  dataUrl   String   @db.Text
+  createdAt DateTime @default(now())
 }
 
-model Holiday {
-  id          String        @id @default(cuid())
-  countryCode String        @map("country_code") @db.Char(2)
-  country     SourceCountry @relation(fields: [countryCode], references: [code])
-  date        DateTime      @db.Date
-  localName   String        @map("local_name")
-  name        String
+model ChannelConnection {
+  id         String    @id @default(cuid())
+  propertyId String
+  property   Property  @relation(fields: [propertyId], references: [id])
+  channel    String
+  externalId String    @default("")
+  status     String    @default("not-connected")
+  updatedAt  DateTime?
 
-  @@unique([countryCode, date, localName])
-  @@index([countryCode, date])
-  @@map("holidays")
+  @@unique([propertyId, channel])
 }
 
-model InboundDemandSnapshot {
-  id                  String        @id @default(cuid())
-  areaId              String        @map("area_id")
-  area                OperatingArea @relation(fields: [areaId], references: [id])
-  countryCode         String?       @map("country_code") @db.Char(2)
-  country             SourceCountry? @relation(fields: [countryCode], references: [code])
-  stayDate            DateTime      @map("stay_date") @db.Date
-  observedAt          DateTime      @map("observed_at")
-  demandIndex         Decimal       @map("demand_index") @db.Decimal(6, 2)
-  inboundSearchVolume Int?          @map("inbound_search_volume")
-  bookingRateEstimate Decimal?      @map("booking_rate_estimate") @db.Decimal(5, 2)
-  searchSharePercent  Decimal?      @map("search_share_percent") @db.Decimal(5, 2)
-  seatCapacity        Int?          @map("seat_capacity")
-  confidence          String?
-  provider            String
+model Activity {
+  id         String   @id @default(cuid())
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id])
+  text       String
+  createdAt  DateTime @default(now())
 
-  @@index([areaId, countryCode, stayDate, observedAt])
-  @@map("inbound_demand_snapshots")
-}
-
-model MarketRateSnapshot {
-  id         String        @id @default(cuid())
-  areaId     String        @map("area_id")
-  area       OperatingArea @relation(fields: [areaId], references: [id])
-  stayDate   DateTime      @map("stay_date") @db.Date
-  observedAt DateTime      @map("observed_at")
-  radiusKm   Decimal       @map("radius_km") @db.Decimal(5, 2)
-  roomType   String        @map("room_type")
-  lowRate    Decimal       @map("low_rate") @db.Decimal(12, 2)
-  medianRate Decimal       @map("median_rate") @db.Decimal(12, 2)
-  averageRate Decimal      @map("average_rate") @db.Decimal(12, 2)
-  highRate   Decimal       @map("high_rate") @db.Decimal(12, 2)
-  sampleSize Int           @map("sample_size")
-  currency   String        @default("KRW") @db.Char(3)
-  provider   String
-
-  @@index([areaId, stayDate, observedAt, radiusKm])
-  @@map("market_rate_snapshots")
-}
-
-model CollectionRun {
-  id          String    @id @default(cuid())
-  kind        String
-  status      String
-  startedAt   DateTime  @default(now()) @map("started_at")
-  completedAt DateTime? @map("completed_at")
-  message     String?
-
-  @@index([kind, startedAt])
-  @@map("collection_runs")
+  @@index([propertyId, createdAt])
 }

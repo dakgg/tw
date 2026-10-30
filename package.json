@@ -1,18 +1,17 @@
 {
-  "name": "travel-watch",
+  "name": "project-eh",
   "version": "0.1.0",
   "private": true,
   "workspaces": [
     "apps/*"
   ],
   "scripts": {
-    "dev": "concurrently -n api,web -c cyan,magenta \"npm run dev -w @travel-watch/api\" \"npm run dev -w @travel-watch/web\"",
-    "build": "npm run build -w @travel-watch/api && npm run build -w @travel-watch/web",
-    "lint": "npm run lint -w @travel-watch/api && npm run lint -w @travel-watch/web",
-    "test": "npm run test -w @travel-watch/api",
+    "dev": "concurrently -n api,web -c cyan,magenta \"npm run dev -w @project-eh/api\" \"npm run dev -w @project-eh/web\"",
+    "build": "npm run build -w @project-eh/api && npm run build -w @project-eh/web",
+    "lint": "npm run lint -w @project-eh/api && npm run lint -w @project-eh/web",
+    "test": "npm run test -w @project-eh/api",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev --name init",
-    "prisma:seed": "prisma db seed"
+    "prisma:migrate": "prisma migrate dev"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",

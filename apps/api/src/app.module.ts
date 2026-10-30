@@ -1,13 +1,9 @@
 import { Module } from '@nestjs/common';
-import { ScheduleModule } from '@nestjs/schedule';
-import { TravelController } from './travel.controller';
-import { TravelService } from './travel.service';
-import { CollectionQueueService } from './collection-queue.service';
-import { ExchangeRateService } from './exchange-rate.service';
+import { ConsoleController } from './console.controller';
+import { AuthController } from './auth.controller';
+import { AuthService } from './auth.service';
+import { SessionGuard } from './auth.guard';
+import { WorkspaceService } from './workspace.service';
 
-@Module({
-  imports: [ScheduleModule.forRoot()],
-  controllers: [TravelController],
-  providers: [TravelService, CollectionQueueService, ExchangeRateService],
-})
+@Module({ controllers: [AuthController, ConsoleController], providers: [AuthService, SessionGuard, WorkspaceService] })
 export class AppModule {}

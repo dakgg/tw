@@ -1,108 +1,122 @@
-# Stay Signal
+# EH · 숙박 운영 워크스페이스
 
-한국 숙박업 운영자가 주요 방한 시장의 공휴일 일정을 확인하는 MVP입니다.
+여러 예약 채널의 숙소 운영을 한곳에서 관리하는 프로젝트입니다. Zest 제품소개서를 기능 참고자료로 사용했으며, 서비스명은 사용자 요청에 따라 **EH**로 변경했습니다. 기존 Stay Signal의 공휴일·환율·지도·주변 시세·항공 수요 기능과 API는 제거했습니다.
 
-## 현재 기능
+## 실행과 첫 로그인
 
-- `date-holidays` 기반 일본·중국·대만·미국의 연도별 공휴일 및 월간 달력
-- 일본·중국·대만·미국 통화의 원화 기준 환율과 데이터 출처
-- 모바일 반응형 대시보드와 Swagger API 문서
-- Google 지도에서 국내 숙소명·주소 검색, 위치 선택 및 반경 1km 표시 (실제 가격 연동은 대기 중)
-
-생성 데이터나 로컬 대체값은 사용하지 않습니다. 실제 공급자가 연결되기 전까지 항공 수요, 예매율, 숙박 시세와 가격 추천은 빈 결과를 반환하며 화면에도 표시하지 않습니다. 공휴일은 `date-holidays` 데이터셋을 사용합니다.
-
-## 기술 구성
-
-```text
-apps/web   Next.js + TypeScript + Apache ECharts
-apps/api   NestJS + BullMQ
-prisma     PostgreSQL + PostGIS 데이터 모델
-infra      Redis + Docker Compose
-```
-
-웹의 `/api/*` 요청은 NestJS `:4000`으로 프록시됩니다. 따라서 외부 공유 시 웹 포트 `3000` 하나만 공개하면 됩니다.
-
-## 로컬 실행
-
-Node.js 20 이상과 npm이 필요합니다.
+Node.js 20.9 이상과 npm을 사용합니다.
 
 ```bash
-cp .env.example .env
 npm install
 npm run dev
 ```
 
-- 대시보드: http://localhost:3000
-- API: http://localhost:4000/api
-- Swagger: http://localhost:4000/docs
+1. http://localhost:3000 에서 로그인 화면을 엽니다.
+2. **계정 만들기**에서 이름·아이디·비밀번호를 등록합니다. 기본 관리자나 공용 비밀번호는 없습니다.
+3. 숙소 설정에서 숙소와 객실을 추가합니다. 가입 시 `예시 데이터를 넣어 기능 살펴보기`를 선택하면 가상의 샘플로 시작할 수 있습니다.
+4. 채널 연결에서 숙소별 OTA ID를 저장하고 예약·운영 기능을 사용합니다.
 
-검증 명령:
+- API: http://127.0.0.1:4000/api
+- Swagger: http://127.0.0.1:4000/docs
+- Next.js는 `/api/*`를 로컬 NestJS로 프록시합니다.
+- 웹과 API 모두 기본적으로 `127.0.0.1`에 바인딩합니다.
+- Redis, PostgreSQL, 지도·환율·공휴일 서비스 없이 실행할 수 있습니다.
+
+## 로그인 및 사용자 분리
+
+- 아이디: 영문·숫자로 시작하는 3~40자의 영문, 숫자, 점, 밑줄, 하이픈. 대소문자를 구분하지 않습니다.
+- 비밀번호: 10~128자. 사용자별 무작위 salt와 scrypt 해시로 저장합니다.
+- 로그인: 서버가 아이디·비밀번호를 검증하고 12시간 유효한 세션을 발급합니다. 세션은 HttpOnly, SameSite=Strict 쿠키에 담고 서버에는 토큰 해시만 저장합니다.
+- 로그아웃: 쿠키와 서버 세션을 함께 만료시킵니다.
+- 비밀번호 변경: 현재 비밀번호를 확인하고 다른 기기의 세션을 모두 해제합니다.
+- 로그인·가입 시도 횟수를 제한하고, 다른 출처의 변경 요청을 거부합니다.
+- **모든 `/api/console/*` 경로는 인증이 필요합니다.** 서버가 로그인한 사용자 ID로 워크스페이스를 선택합니다. 클라이언트가 보낸 사용자 ID를 신뢰하지 않습니다.
+- 숙소·예약·게스트·노트·사진·청소·OTA 설정은 사용자별 파일로 분리됩니다. 다른 사용자의 리소스 ID를 알고 있어도 조회·수정할 수 없습니다.
+- 계정 내부의 모든 숙소는 해당 계정이 관리합니다. 팀 초대·직원 역할·청소업체 전용 권한은 후속 범위입니다.
+
+아이디 찾기·이메일 기반 비밀번호 재설정은 아직 제공하지 않습니다. 현재는 아이디·비밀번호 검증 후 로그인하는 흐름입니다.
+
+## 기능
+
+| 메뉴 | 동작 |
+| --- | --- |
+| 로그인 | 회원가입, ID/PW 검증, 세션 확인, 로그아웃, 내 계정 비밀번호 변경 |
+| 대시보드 | 숙소별 오늘 체크인·체크아웃, 객실 점유율, 미완료 청소·메시지·이슈, 예약 매출, 활동 기록 |
+| 예약 현황 | 수동 예약 등록·수정·취소, 체크인·체크아웃, 검색·상태 필터, 주간 객실 달력 |
+| 객단가·재고 | 날짜별 객실 요금, 최대 90일 일괄 변경, 판매 중지, 예약에 따른 재고 차감·취소 복원 |
+| 청소 일정 | 예약의 체크아웃에 맞춰 자동 생성·변경·취소 반영, 수동 일정, 담당자·메모·작업 상태 |
+| 게스트 메신저 | 예약별 대화, 읽음 표시, 답장 초안 저장. 실제 외부 전송 없음 |
+| 객실 이슈 | 수리·점검 등록, 긴급도·내용·진행 상태 수정 |
+| 매출·리포트 | 체크아웃 월 기준 예약 금액·입력 수수료·정산 예정액, 수동 입금 확인, 일별·채널별 집계, CSV 내보내기 |
+| 게스트 노트 | 예약 이력·완료 숙박 횟수·응대 메모, 기존 게스트로 예약 등록 |
+| 보상 자료지원 | 예약별 파손 기록·금액·자료 상태, PNG/JPEG/WebP 첨부, 사진을 포함한 JSON 내보내기 |
+| 채널 연결 | 사용자·숙소별 Airbnb·Booking.com·Trip.com·Expedia·Agoda 숙소 ID 등록과 연결 준비 안내 |
+| 숙소 설정 | 여러 숙소와 객실 생성·수정, 객실 유형·정원·기본 요금 관리 |
+
+예약은 체크인 포함·체크아웃 제외 구간으로 객실을 점유합니다. 서버가 날짜, 정원, 금액, 수수료, 중복 예약, 판매 중지일과 상태 전이를 검사합니다. 조기 퇴실은 체크아웃 날짜를 오늘로 바꾼 뒤 처리합니다. 정산 완료 예약은 정산 상태를 대기로 돌린 후 금액 수정 또는 취소할 수 있습니다.
+
+## 저장과 환경 설정
+
+`.env.example`을 `.env`로 복사해 설정할 수 있습니다. 값이 없어도 기본 로컬 설정으로 실행됩니다.
+
+| 설정 | 의미 |
+| --- | --- |
+| `EH_DATA_DIR` | 계정·세션·사용자별 워크스페이스를 저장할 절대 경로. 기본값 `.data/project-eh` |
+| `EH_ALLOW_SIGNUP` | `false`로 설정하면 신규 계정 생성 비활성화 |
+| `EH_COOKIE_SECURE` | 로컬 HTTP에서는 `false`, HTTPS 배포에서는 `true` |
+| `WEB_ORIGIN` | 허용하는 웹 출처. 기본값 `http://localhost:3000` |
+| `API_HOST`, `PORT` | API 주소와 포트. 기본값 `127.0.0.1:4000` |
+| `DATABASE_URL` | 향후 PostgreSQL 어댑터를 위한 선택 설정. 현재 API는 사용하지 않음 |
+
+```text
+.data/project-eh/
+  accounts.json                  # 비밀번호 해시, 계정, 세션 토큰 해시
+  workspaces/<user-id>.json       # 해당 사용자만의 숙소·예약·OTA 설정 등
+```
+
+파일은 임시 파일 쓰기 후 원자적으로 교체합니다. 저장에 실패하면 메모리에도 반영하지 않습니다. 재시작 후 데이터와 유효한 로그인 세션이 유지됩니다. `.data/`는 Git에서 제외됩니다. **단일 API 프로세스용**으로 설계했으므로 여러 프로세스가 같은 파일을 사용하지 마세요.
+
+체험 데이터는 가입 시 사용자가 선택한 경우에만 해당 사용자 파일을 처음 만들 때 생성합니다. 화면 전체에 예시 데이터임을 표시합니다. 실제 운영 정보가 아니며, 이름·주소·예약·메시지는 가상입니다. 기존 `.data/zest.json` 같은 이전 버전 파일은 어느 계정에도 자동 배정하거나 덮어쓰지 않습니다.
+
+사진은 건별 최대 10개, 각 2MB까지 저장하며 서버에서도 크기·형식 서명을 검사합니다. 내보낸 보상 자료에는 게스트 정보와 사진이 포함됩니다.
+
+## 실제 OTA 연동 범위
+
+사용자는 아직 공식 파트너 API나 채널매니저 계약이 없다고 확인했으므로 **이번 범위는 계정별 연결 설정**입니다.
+
+- 각 사용자에게 속한 숙소마다 5개 OTA의 숙소·호텔 ID를 저장합니다.
+- ID 저장 상태는 `설정 저장됨 · 연동 대기`입니다. 실제 연결로 표시하지 않습니다.
+- 외부 OTA 어댑터, OAuth 승인, 예약·재고·요금 동기화와 게스트 메시지 송수신은 아직 구현하지 않았습니다.
+- 요금·예약·재고 변경은 워크스페이스에만 저장됩니다. 답장은 초안이며 보상 요청은 외부로 접수하지 않습니다.
+- 동기화 API는 공식 어댑터 미설정을 설명하는 `503`을 반환합니다.
+- API 키와 계정 비밀번호를 숙소 ID 칸에 넣지 마세요.
+
+실제 연동 단계에서 공식 API/채널매니저를 선정하고 사용자별 토큰 암호화 보관, 객실 매핑, 웹훅 검증·중복 방지, 재시도·충돌 해결과 채널별 정산 처리를 추가합니다.
+
+## 운영 배포 및 데이터 모델
+
+현재는 로컬 검토용 파일 저장소입니다. 외부 배포 전 HTTPS·Secure 쿠키·운영 도메인 설정, 데이터베이스 전환, 백업·감사 로그, 영속적 로그인 제한, 비밀번호 복구와 계정 운영 정책을 마련해야 합니다. 현재 데이터와 인증은 단일 프로세스에서 검증했습니다.
+
+`prisma/schema.prisma`는 User·Session·Property·Room·Reservation·CleaningTask·Message·Claim·ChannelConnection 등의 관계형 설계입니다. 실행 중 API에는 아직 연결하지 않았으며 기존 Travel Watch 데이터베이스에 마이그레이션을 실행하지 않았습니다. 선택적 Docker PostgreSQL은 별도 `project-eh-postgres-data` 볼륨을 사용합니다.
+
+## 검증
 
 ```bash
-npm run lint
 npm test
+npm run lint
 npm run build
-npm run prisma:generate
 ```
 
-## 데이터베이스와 수집 큐
+테스트는 임시 경로에서 실행합니다. 인증, 사용자별 접근 차단, 세션 만료·로그아웃·비밀번호 변경, 중복 예약, 날짜·정원·금액 검증, 재고·청소 자동 처리, 저장 실패 롤백, 메시지 초안, 보상 증빙과 미연결 OTA 동작을 검사합니다.
 
-```bash
-docker compose up -d
-npm run prisma:generate
-npm run prisma:migrate
-psql "$DATABASE_URL" -f prisma/postgis.sql
-```
+## 구조
 
-`REDIS_URL`이 없으면 수집 큐는 비활성화됩니다. 설정하면 수집 작업이 BullMQ에 6시간 주기로 등록되지만, 실제 공급자 어댑터를 연결하기 전에는 작업이 실패합니다.
-
-## Google 지도 설정
-
-Google Cloud 프로젝트에서 결제 계정을 연결하고 **Maps JavaScript API**와 **Places API (New)**를 활성화하세요. `apps/web/.env.local`에 아래 변수를 설정한 다음 개발 서버를 재시작합니다. 배포 환경에서는 빌드 전에 설정해야 합니다.
-
-```dotenv
-NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=발급받은_브라우저용_키
-```
-
-브라우저에 공개되는 키이므로 Google Cloud에서 웹사이트 HTTP 리퍼러 제한(`http://localhost:3000/*`, 실제 배포 도메인)과 위 API 제한을 설정하세요. 키 파일은 커밋하지 않습니다. 키가 없으면 지도 연결 안내를 표시합니다. 검색 범위는 대한민국이며 검색된 이름·주소·위치와 1km 원을 표시합니다. Google 지도 연동은 예약 사이트 가격 조회와 별개입니다.
-
-[Google 공식 설정 안내](https://developers.google.com/maps/documentation/javascript/get-api-key) · [장소 자동완성 안내](https://developers.google.com/maps/documentation/javascript/place-autocomplete-new)
-
-## Cloudflare Quick Tunnel
-
-macOS에서는 다음과 같이 임시 공개 주소를 만들 수 있습니다.
-
-```bash
-brew install cloudflared
-npm run dev
-cloudflared tunnel --no-autoupdate --url http://127.0.0.1:3000
-```
-
-출력된 `https://*.trycloudflare.com` 주소를 공유합니다. Quick Tunnel은 테스트 전용이며 프로세스를 종료하거나 다시 실행하면 주소가 변경됩니다.
-
-## 주요 API
-
-- `GET /api/operating-areas`
-- `GET /api/dashboard/:areaCode?radiusKm=3&countryCodes=JP,CN,TW,US`
-- `GET /api/holidays?countryCodes=JP,CN,TW,US&year=2026`
-- `GET /api/exchange-rates`
-- `GET /api/inbound-demand?areaCode=SEOUL-JG`
-- `GET /api/country-booking-rates?areaCode=SEOUL-JG`
-- `GET /api/market-rates?areaCode=SEOUL-JG&radiusKm=3`
-- `POST /api/collectors/run`
-
-## 실제 데이터 연동 계획
-
-국내 숙소 가격의 사이트별 연동 조건과 비교 기준은 [숙소 가격 연동 문서](./docs/accommodation-providers.md)를 참고하세요.
-
-- Booking.com: Demand API 파트너 자격증명 필요
-- Trip.com: Hotel API 파트너 자격증명 필요
-- Google Maps: Maps JavaScript API 키와 결제 계정 필요
-- Airbnb: 가격 분석 사용을 허용하는 별도 파트너 계약 없이는 연동하지 않음
-
-개별 숙소 정보는 장기 저장하지 않고 지역·반경·객실 유형별 익명 집계값만 유지하는 것을 원칙으로 합니다. API 키는 저장소에 커밋하지 말고 `.env`에만 보관하세요.
-
-## 문서
-
-- [저장소 기여 지침](./AGENTS.md)
-- [날짜별 작업일지](./docs/work-log/README.md)
+- `apps/web/src/components/AuthGate.tsx`: 로그인·가입과 인증 진입점
+- `apps/web/src/components/EhConsole.tsx`: 내비게이션·숙소 전환·데이터 갱신
+- `apps/web/src/components/eh/`: 기능별 화면과 폼
+- `apps/api/src/auth.*`: 계정·세션·인증 가드
+- `apps/api/src/workspace.service.ts`: 인증 사용자별 저장소 선택
+- `apps/api/src/console.*`: 운영 API·업무 처리·검증
+- `prisma/schema.prisma`: 향후 관계형 데이터 모델
+- `docs/project-eh.md`: 변경 범위와 API 요약
+- `docs/archive/`: 이전 기능의 참고 문서 보존
