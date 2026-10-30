@@ -1,10 +1,14 @@
 # EH · 숙박 운영 워크스페이스
 
-여러 예약 채널의 숙소 운영을 한곳에서 관리하는 프로젝트입니다. Zest 제품소개서를 기능 참고자료로 사용했으며, 서비스명은 사용자 요청에 따라 **EH**로 변경했습니다. 기존 Stay Signal의 공휴일·환율·지도·주변 시세·항공 수요 기능과 API는 제거했습니다.
+**EH**는 사용자별로 숙소·예약·객실 재고·청소·게스트 응대·정산 자료를 관리하는 숙박 운영 워크스페이스입니다. Next.js 프런트엔드와 NestJS API로 구성된 npm 모노레포입니다.
+
+현재 로그인과 사용자별 운영 데이터 저장을 지원하며, 예약은 수동으로 등록합니다. **Airbnb 등 OTA는 숙소 ID 저장까지만 구현되어 있으며 실제 예약 수신·요금 전송·달력 동기화는 아직 제공하지 않습니다.**
+
+Zest 제품소개서는 기능 참고자료입니다. 사용자에게 표시하는 서비스명은 EH이고, 내부 패키지 이름은 `project-eh`, `@project-eh/web`, `@project-eh/api`를 사용합니다. 이전 Stay Signal의 공휴일·환율·지도·주변 시세·항공 수요 기능은 제거했습니다.
 
 ## 실행과 첫 로그인
 
-Node.js 20.9 이상과 npm을 사용합니다.
+Node.js 22 이상과 npm을 사용합니다. 아래 명령은 모두 저장소 루트에서 실행합니다. Node.js의 `process.loadEnvFile`로 루트 `.env`를 읽으므로 해당 API를 지원하는 런타임이 필요합니다.
 
 ```bash
 npm install
@@ -14,13 +18,78 @@ npm run dev
 1. http://localhost:3000 에서 로그인 화면을 엽니다.
 2. **계정 만들기**에서 이름·아이디·비밀번호를 등록합니다. 기본 관리자나 공용 비밀번호는 없습니다.
 3. 숙소 설정에서 숙소와 객실을 추가합니다. 가입 시 `예시 데이터를 넣어 기능 살펴보기`를 선택하면 가상의 샘플로 시작할 수 있습니다.
-4. 채널 연결에서 숙소별 OTA ID를 저장하고 예약·운영 기능을 사용합니다.
+4. 예약 현황에서 예약을 수동 등록하고 청소·매출·게스트 기능을 사용합니다.
+5. 채널 연결에서 숙소별 OTA ID를 저장할 수 있습니다. 이 단계는 연결 준비이며 외부 예약을 가져오지 않습니다.
 
 - API: http://127.0.0.1:4000/api
 - Swagger: http://127.0.0.1:4000/docs
 - Next.js는 `/api/*`를 로컬 NestJS로 프록시합니다.
 - 웹과 API 모두 기본적으로 `127.0.0.1`에 바인딩합니다.
 - Redis, PostgreSQL, 지도·환율·공휴일 서비스 없이 실행할 수 있습니다.
+
+### 주요 명령
+
+| 명령 | 용도 |
+| --- | --- |
+| `npm run dev` | API와 웹 개발 서버를 함께 실행 |
+| `npm test` | API Jest 테스트 실행 |
+| `npm run lint` | 두 워크스페이스의 TypeScript 타입 검사 |
+| `npm run build` | API와 웹 프로덕션 빌드 |
+| `npm run start -w @project-eh/api` | 빌드된 API 실행 |
+| `npm run start -w @project-eh/web` | 빌드된 웹 실행 |
+| `docker compose up -d` | 선택적 PostgreSQL 실행. 현재 API에서는 사용하지 않음 |
+| `npm run prisma:generate` | 향후 DB 어댑터용 Prisma 클라이언트 생성 |
+
+빌드 결과로 실행하려면 `npm run build` 후 API와 웹의 `start` 명령을 각각 별도 터미널에서 실행합니다. 개발 서버와 동시에 실행하면 포트가 충돌하므로 먼저 개발 서버를 종료합니다. 루트에는 통합 `npm start` 명령이 없습니다.
+
+## Cloudflare Tunnel로 외부 접속하기
+
+로컬 EH를 외부에서 확인할 때 무료 Quick Tunnel을 사용할 수 있습니다. Cloudflare 계정이나 도메인 없이 임시 HTTPS 주소가 만들어집니다. 요청은 `외부 브라우저 → Cloudflare → 로컬 웹 서버(3000) → 로컬 API(4000)` 순서로 전달됩니다. 웹 서버가 API를 프록시하므로 **3000번 포트만 연결**하며 API 바인딩은 `127.0.0.1`로 유지합니다.
+
+### 1. 설치 및 로컬 실행
+
+macOS에서는 Homebrew로 설치합니다. 다른 환경은 [cloudflared 설치 안내](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/)를 참고하세요.
+
+```bash
+brew install cloudflared
+```
+
+저장소 루트에서 첫 번째 터미널로 EH를 실행합니다. 이미 실행 중이면 중복 실행하지 않습니다.
+
+```bash
+npm run dev
+```
+
+두 번째 터미널에서 Tunnel을 실행하고 그대로 켜 둡니다.
+
+```bash
+cloudflared tunnel --url http://127.0.0.1:3000
+```
+
+출력에 표시된 `https://….trycloudflare.com` 주소를 복사합니다.
+
+### 2. 외부 주소에 맞춰 로그인 설정
+
+루트에 `.env`가 없으면 `.env.example`을 복사해 만듭니다. 기존 `.env`가 있으면 덮어쓰지 말고 아래 항목만 수정합니다. `WEB_ORIGIN`에는 실제 발급된 HTTPS 주소를 경로나 마지막 `/` 없이 입력합니다.
+
+```dotenv
+WEB_ORIGIN="https://발급된주소.trycloudflare.com"
+EH_COOKIE_SECURE=true
+```
+
+첫 번째 터미널에서 EH를 `Ctrl+C`로 종료하고 `npm run dev`로 다시 시작합니다. **Tunnel은 종료하지 않습니다.** 외부 HTTPS 주소로 접속해 회원가입·로그인과 예약 저장을 확인합니다. 기존 계정만 사용할 경우 `EH_ALLOW_SIGNUP=false`를 설정하고 EH를 재시작하면 신규 가입이 비활성화됩니다.
+
+### 3. 종료 및 문제 해결
+
+- 공유를 마치면 Tunnel 터미널에서 `Ctrl+C`로 종료합니다. 컴퓨터가 꺼지거나 잠자기에 들어가거나 EH·Tunnel 프로세스가 종료되면 접속할 수 없습니다.
+- Quick Tunnel을 새로 실행하면 주소가 바뀝니다. 그때마다 `WEB_ORIGIN`을 수정하고 EH를 재시작합니다.
+- 로그인·저장 시 `허용되지 않은 요청 출처입니다`가 나오면 접속 주소와 `WEB_ORIGIN`이 정확히 같은지 확인합니다.
+- `502`가 나오면 로컬 EH가 실행 중인지와 `http://127.0.0.1:3000` 접속 여부를 확인합니다.
+- 로컬 HTTP 개발로 돌아올 때는 `WEB_ORIGIN="http://localhost:3000"`, `EH_COOKIE_SECURE=false`로 되돌리고 EH를 재시작합니다.
+
+Quick Tunnel은 테스트용이며 가동 시간을 보장하지 않습니다. 동시 처리 중인 요청은 최대 200개이고 SSE를 지원하지 않습니다. 주소를 아는 사람은 로그인 화면에 접근할 수 있습니다. 고정 주소가 필요하면 Cloudflare 계정과 도메인을 사용하는 정식 Tunnel을 구성하세요. [Cloudflare Quick Tunnel 공식 안내](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/)
+
+Tunnel은 외부 접속 경로를 제공하며, 아래 운영 배포 준비나 Airbnb·OTA 연동 권한을 대신하지 않습니다. 현재 데이터는 계속 로컬 `.data/project-eh`에 저장됩니다(`EH_DATA_DIR` 설정 시 해당 경로 사용).
 
 ## 로그인 및 사용자 분리
 
@@ -59,6 +128,8 @@ npm run dev
 
 `.env.example`을 `.env`로 복사해 설정할 수 있습니다. 값이 없어도 기본 로컬 설정으로 실행됩니다.
 
+기존 `.env`를 덮어쓰지 말고 필요한 항목만 수정하세요. 환경 설정 변경 후 서버를 재시작하며, 실제 비밀값이 들어 있는 `.env`는 커밋하지 않습니다.
+
 | 설정 | 의미 |
 | --- | --- |
 | `EH_DATA_DIR` | 계정·세션·사용자별 워크스페이스를 저장할 절대 경로. 기본값 `.data/project-eh` |
@@ -67,6 +138,8 @@ npm run dev
 | `WEB_ORIGIN` | 허용하는 웹 출처. 기본값 `http://localhost:3000` |
 | `API_HOST`, `PORT` | API 주소와 포트. 기본값 `127.0.0.1:4000` |
 | `DATABASE_URL` | 향후 PostgreSQL 어댑터를 위한 선택 설정. 현재 API는 사용하지 않음 |
+
+웹의 API 프록시 대상은 `apps/web/next.config.ts`에서 `http://127.0.0.1:4000`으로 지정되어 있습니다. API 주소·포트를 변경할 때는 이 프록시 설정도 함께 변경해야 합니다.
 
 ```text
 .data/project-eh/
@@ -82,7 +155,7 @@ npm run dev
 
 ## 실제 OTA 연동 범위
 
-사용자는 아직 공식 파트너 API나 채널매니저 계약이 없다고 확인했으므로 **이번 범위는 계정별 연결 설정**입니다.
+현재 공식 파트너 API나 채널매니저 계약이 구성되어 있지 않으며, **구현된 범위는 계정별 연결 설정**입니다.
 
 - 각 사용자에게 속한 숙소마다 5개 OTA의 숙소·호텔 ID를 저장합니다.
 - ID 저장 상태는 `설정 저장됨 · 연동 대기`입니다. 실제 연결로 표시하지 않습니다.
@@ -90,6 +163,7 @@ npm run dev
 - 요금·예약·재고 변경은 워크스페이스에만 저장됩니다. 답장은 초안이며 보상 요청은 외부로 접수하지 않습니다.
 - 동기화 API는 공식 어댑터 미설정을 설명하는 `503`을 반환합니다.
 - API 키와 계정 비밀번호를 숙소 ID 칸에 넣지 마세요.
+- Airbnb 로그인·권한 승인 연결 및 iCal 가져오기·내보내기 역시 아직 구현되지 않았습니다. 숙소 링크나 ID를 저장해도 이 기능이 활성화되지는 않습니다.
 
 실제 연동 단계에서 공식 API/채널매니저를 선정하고 사용자별 토큰 암호화 보관, 객실 매핑, 웹훅 검증·중복 방지, 재시도·충돌 해결과 채널별 정산 처리를 추가합니다.
 
@@ -117,6 +191,15 @@ npm run build
 - `apps/api/src/auth.*`: 계정·세션·인증 가드
 - `apps/api/src/workspace.service.ts`: 인증 사용자별 저장소 선택
 - `apps/api/src/console.*`: 운영 API·업무 처리·검증
+- `apps/api/src/console-data.ts`: 빈 워크스페이스 및 선택적 가상 예시 데이터
+- `apps/api/src/types.ts`, `apps/api/src/auth.types.ts`: API 데이터 계약
+- `apps/web/src/lib/`: API 클라이언트와 백엔드 타입 재내보내기
 - `prisma/schema.prisma`: 향후 관계형 데이터 모델
-- `docs/project-eh.md`: 변경 범위와 API 요약
-- `docs/archive/`: 이전 기능의 참고 문서 보존
+
+## 관련 문서
+
+- [개발 작업 지침](AGENTS.md): 코드 구조, 검증, 인증·저장소·OTA 처리 원칙
+- [프런트엔드 작업 지침](apps/web/AGENTS.md): Next.js 변경 시 참고할 문서
+- [기능 범위와 API 요약](docs/project-eh.md)
+- [작업 로그](docs/work-log/README.md): 날짜별 변경 및 검증 기록
+- [이전 기능 참고 문서](docs/archive/): 보존용 자료이며 현재 구현 범위와 다를 수 있음
